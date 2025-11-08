@@ -1,0 +1,15 @@
+.venv/
+client_secret_*.json
+
+# Ambientes Virtuais
+venv/
+*.pyc
+
+# Banco de Dados
+db.sqlite3
+
+# Arquivos de Mídia
+/media/
+
+# Chaves de Segurança
+sgb/settings.py
