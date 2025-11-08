@@ -1,0 +1,29 @@
+{% extends 'base.html' %} 
+
+{% block title %}Confirmar Devolução{% endblock %}
+
+{% block content %}
+    <div class="container my-5">
+        <h2>Confirmar Devolução</h2>
+        <hr>
+        
+        <p>Você tem certeza que deseja devolver o livro:</p>
+        <h4 class="text-danger">{{ emprestimo.livro.titulo }}</h4>
+        <p>Emprestado por: **{{ emprestimo.usuario.username }}**</p>
+        <p>Data de Empréstimo: {{ emprestimo.data_emprestimo|date:"d/m/Y" }}</p>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <p class="mt-4">Essa ação encerrará seu período de leitura para este eBook.</p>
+            
+            <button type="submit" class="btn btn-danger me-2">
+                <i class="fas fa-undo"></i> Sim, Devolver Agora
+            </button>
+            
+            <a href="{% url 'detalhes_livro' emprestimo.livro.id %}" class="btn btn-secondary">
+                Cancelar
+            </a>
+        </form>
+    </div>
+{% endblock %}

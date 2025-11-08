@@ -1,0 +1,63 @@
+{% extends 'base.html' %} 
+
+{% block title %}{{ livro.titulo }} - Detalhes{% endblock %}
+
+{% block content %}
+    <div class="container my-5">
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <h2>Detalhes do Livro: {{ livro.titulo }}</h2>
+        <hr>
+        
+        <p><strong>Autor:</strong> {{ livro.autor.nome }} {{ livro.autor.sobrenome }}</p>
+        <p><strong>Editora:</strong> {{ livro.editora|default:"Não informado" }}</p>
+        <p><strong>Ano de Publicação:</strong> {{ livro.ano_publicacao }}</p>
+        
+        <div class="mt-4 p-3 border rounded">
+            <h4>Ações do Ebook</h4>
+            
+            {% if livro.tem_ebook %}
+                {% if user.is_authenticated %}
+                    
+                    {% if tem_acesso %}
+                        <p class="text-success">
+                            Você tem acesso a este eBook. Devolução prevista: 
+                            <strong>{{ emprestimo_ativo.data_prevista_devolucao|date:"d/m/Y" }}</strong>.
+                        </p>
+                        
+                        <a href="{% url 'ler_ebook' livro.id %}" class="btn btn-success me-2">
+                            <i class="fas fa-book-open"></i> Continuar Lendo
+                        </a>
+                        
+                        <a href="{% url 'devolver_livro' emprestimo_ativo.id %}" class="btn btn-danger">
+                            <i class="fas fa-undo"></i> Devolver Livro
+                        </a>
+                    
+                    {% else %}
+                        <p class="text-info">Cópia digital disponível para empréstimo virtual.</p>
+                        <a href="{% url 'iniciar_emprestimo_ebook' livro.id %}" class="btn btn-primary">
+                            <i class="fas fa-handshake"></i> Emprestar eBook (7 dias)
+                        </a>
+                    {% endif %}
+                
+                {% else %}
+                    <p>Faça <a href="{% url 'login' %}">login</a> para emprestar e ler o eBook.</p>
+                {% endif %}
+            
+            {% else %}
+                <p class="text-muted">Cópia digital (eBook) não disponível.</p>
+            {% endif %}
+        </div>
+        
+        <div class="mt-4">
+            <a href="{% url 'cadastro_livro' %}" class="btn btn-secondary">Voltar à Lista</a>
+        </div>
+    </div>
+{% endblock %}
