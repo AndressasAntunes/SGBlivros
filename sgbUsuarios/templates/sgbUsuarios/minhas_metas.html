@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %} <!-- Verifique o nome real do seu arquivo de filtros -->
+
+{% block title %}Minhas Metas de Leitura{% endblock title %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>🎯 Minhas Metas</h2>
+    <hr>
+    
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if metas %}
+        {% for meta in metas %}
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">
+                    Meta de Livros: **{{ meta.meta_livros }}** | Prazo: {{ meta.data_fim|date:"d/m/Y" }}
+                </h5>
+                
+                {% with lidos=meta.livros_lidos|default:0 %}
+                    
+                    {% if meta.meta_livros > 0 %}
+                        <!-- CÁLCULO CORRIGIDO: Garante que 'lidos' seja tratado como inteiro antes de calcular -->
+                        {% with percentual=lidos|int|div:meta.meta_livros|mul:100|floatformat:0 %}
+                        
+                            <p class="card-text">
+                                Livros Lidos: **{{ lidos }}** de **{{ meta.meta_livros }}**
+                            </p>
+
+                            <div class="progress mb-2" style="height: 25px;">
+                                <div class="progress-bar 
+                                    {% if meta.status == 'CONCLUIDA' %} bg-primary 
+                                    {% elif meta.status == 'ATIVA' and percentual >= 100 %} bg-warning 
+                                    {% elif meta.status == 'ATIVA' %} bg-success 
+                                    {% else %} bg-secondary 
+                                    {% endif %}" 
+                                    role="progressbar" 
+                                    aria-valuenow="{{ lidos }}" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="{{ meta.meta_livros }}">
+                                    
+                                    {{ percentual }}%
+                                </div>
+                            </div>
+                        
+                        {% endwith %}
+                    {% else %}
+                        <p class="card-text text-danger">Meta de livros inválida (deve ser > 0).</p>
+                    {% endif %}
+                {% endwith %}
+
+                <p class="card-text mt-3">
+                    Status: 
+                    {% if meta.status == 'ATIVA' %}
+                        <span class="badge bg-success">ATIVA</span>
+                    {% elif meta.status == 'CONCLUIDA' %}
+                        <span class="badge bg-primary">CONCLUÍDA 🎉</span>
+                    {% else %}
+                        <span class="badge bg-danger">INATIVA / Expirada</span>
+                    {% endif %}
+                </p>
+                
+                <a href="#" class="btn btn-sm btn-info disabled">Detalhes</a>
+                
+                {% if meta.status == 'ATIVA' %}
+                    <!-- Não há código nesta linha, é apenas o fechamento da condição -->
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-warning">
+            Você não tem metas cadastradas ou ativas.
+            <a href="{% url 'cadastrar_meta' %}" class="alert-link">Definir Nova Meta</a>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock content %}

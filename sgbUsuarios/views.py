@@ -1,16 +1,24 @@
-from django.shortcuts import render, redirect
+# Arquivo: sgbUsuarios/views.py
+
+from django.shortcuts import render, redirect, get_object_or_404 # Adicionado get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.core.mail import send_mail
 from django.conf import settings
 from django.http import HttpResponse
 from django.contrib.auth import authenticate, login, logout
-from sgblivros.models import Livro
+from sgblivros.models import Livro # Já importado
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth import views as auth_views
 from django.urls import reverse_lazy
+from django.contrib.auth.decorators import login_required
+from .forms import MetaLeituraForm 
+from .models import MetaLeitura, LivroLido 
+from django.utils import timezone 
+from datetime import datetime, timedelta
+import pyotp
 
 
 
@@ -220,4 +228,101 @@ def NewPasswordPage(request, uidb64, token):
         messages.error(request, 'Link inválido ou expirado! Solicite um novo link de redefinição.')
         return render(request, 'NewPassword.html', {'validlink': False})
 
-# Create your views here.
+
+@login_required(login_url='/auth/login/')
+def cadastrar_meta(request):
+    # Verifica se o usuário já tem uma meta ATIVA
+    meta_ativa = MetaLeitura.objects.filter(usuario=request.user, status='ATIVA').exists()
+    
+    if meta_ativa:
+        messages.warning(request, "Você já possui uma meta de leitura ativa. Finalize a atual para criar uma nova.")
+        # Redireciona para o painel ou lista de metas 
+        return redirect('minhas_metas') 
+
+    if request.method == 'POST':
+        form = MetaLeituraForm(request.POST)
+        if form.is_valid():
+            # Não salva no banco ainda (commit=False)
+            meta = form.save(commit=False) 
+            # Define o usuário da meta como o usuário logado
+            meta.usuario = request.user 
+            # Salva no banco de dados
+            meta.save() 
+            messages.success(request, "Meta de leitura cadastrada com sucesso!")
+            # Redireciona para a listagem de metas
+            return redirect('minhas_metas') 
+    else:
+        # Se for um GET request, exibe um formulário vazio
+        form = MetaLeituraForm()
+
+    context = {
+        'form': form,
+        'meta_ativa': meta_ativa
+    }
+    
+    # Renderiza o template de cadastro
+    return render(request, 'sgbUsuarios/cadastrar_meta.html', context)
+
+@login_required(login_url='/auth/login/')
+def minhas_metas(request):
+    """View para listar todas as metas de leitura do usuário logado."""
+    
+    # Obtém todas as metas de leitura para o usuário logado, ordenadas pela mais recente
+    metas = MetaLeitura.objects.filter(usuario=request.user).order_by('-data_inicio')
+    
+    context = {
+        'metas': metas,
+    }
+    
+    # Renderiza o template de listagem
+    return render(request, 'sgbUsuarios/minhas_metas.html', context)
+
+@login_required
+def marcar_livro_lido(request, livro_id):
+    """
+    Marca um livro como lido pelo usuário e atualiza a Meta de Leitura ativa.
+    """
+    # 1. Deve ser uma requisição POST (clique no botão do formulário)
+    if request.method == 'POST':
+        livro = get_object_or_404(Livro, pk=livro_id)
+
+        # 2. Checa se já está lido
+        if LivroLido.objects.filter(usuario=request.user, livro=livro).exists():
+            messages.warning(request, f'O livro "{livro.titulo}" já está marcado como lido.')
+            # Redireciona para a lista de livros (nome da URL que lista os livros)
+            return redirect('livros')
+        
+        # 3. Cria o registro de livro lido
+        LivroLido.objects.create(
+            usuario=request.user,
+            livro=livro,
+            data_conclusao=timezone.now().date() # Salva apenas a data
+        )
+        
+        # 4. Tenta atualizar a meta de leitura ativa
+        try:
+            # Busca a meta ATIVA mais recente do usuário
+            meta_ativa = MetaLeitura.objects.filter(
+                usuario=request.user, 
+                status='ATIVA'
+            ).order_by('-data_inicio').first()
+            
+            if meta_ativa:
+                # Incrementa o contador de livros lidos
+                meta_ativa.livros_lidos = (meta_ativa.livros_lidos or 0) + 1
+                
+                # Checa se a meta foi atingida
+                if meta_ativa.livros_lidos >= meta_ativa.meta_livros:
+                    meta_ativa.status = 'CONCLUIDA' # Altera o status
+                    messages.success(request, f'Parabéns! Você concluiu sua meta de {meta_ativa.meta_livros} livros!')
+                
+                meta_ativa.save()
+
+        except Exception as e:
+            # Em caso de erro, apenas loga e deixa o livro marcado
+            print(f"Erro ao tentar atualizar meta de leitura: {e}")
+            
+        messages.success(request, f'O livro "{livro.titulo}" foi marcado como lido.')
+        
+    # Retorna para a lista de livros
+    return redirect('livros')
